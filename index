@@ -1,0 +1,137 @@
+// index.js
+
+// 1. Import Express
+const express = require('express');
+
+// 2. Initialize Express app
+const app = express();
+const port = process.env.PORT || 3000;
+
+// 3. Middleware
+// This middleware parses incoming requests with JSON payloads.
+// It's based on body-parser.
+app.use(express.json());
+
+// 4. In-Memory Data Store
+// For simplicity, we'll use an array of objects as our in-memory database.
+// In a real-world application, you would use a database like MongoDB, PostgreSQL, etc.
+let items = [
+    { id: 1, name: 'Laptop', description: 'A high-performance laptop for development.' },
+    { id: 2, name: 'Keyboard', description: 'A mechanical keyboard with RGB lighting.' },
+    { id: 3, name: 'Mouse', description: 'An ergonomic wireless mouse.' }
+];
+let nextId = 4; // To simulate auto-incrementing ID
+
+// 5. Routes
+
+// Root Route
+// A simple welcome message for the root URL.
+app.get('/', (req, res) => {
+    res.send('Hello, World! Welcome to the Simple REST API.');
+});
+
+// --- CRUD Operations for /items ---
+
+// GET /items - Retrieve all items
+app.get('/items', (req, res) => {
+    res.status(200).json(items);
+});
+
+// GET /items/:id - Retrieve a single item by ID
+app.get('/items/:id', (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    const item = items.find(i => i.id === itemId);
+
+    if (item) {
+        res.status(200).json(item);
+    } else {
+        // If item is not found, return a 404 Not Found error
+        res.status(404).json({ message: 'Item not found.' });
+    }
+});
+
+// POST /items - Create a new item
+app.post('/items', (req, res) => {
+    const { name, description } = req.body;
+
+    // Basic validation: Check if name and description are provided
+    if (!name || !description) {
+        return res.status(400).json({ message: 'Bad Request. Name and description are required.' });
+    }
+
+    const newItem = {
+        id: nextId++,
+        name: name,
+        description: description
+    };
+
+    items.push(newItem);
+
+    // Return the newly created item with a 201 Created status
+    res.status(201).json(newItem);
+});
+
+// PUT /items/:id - Update an item by ID
+app.put('/items/:id', (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    const itemIndex = items.findIndex(i => i.id === itemId);
+
+    if (itemIndex !== -1) {
+        const { name, description } = req.body;
+        
+        // Basic validation
+        if (!name || !description) {
+            return res.status(400).json({ message: 'Bad Request. Name and description are required for an update.' });
+        }
+        
+        const updatedItem = {
+            id: itemId,
+            name: name,
+            description: description
+        };
+
+        items[itemIndex] = updatedItem;
+        res.status(200).json(updatedItem);
+    } else {
+        // If item is not found, return a 404 Not Found error
+        res.status(404).json({ message: 'Item not found.' });
+    }
+});
+
+// DELETE /items/:id - Delete an item by ID
+app.delete('/items/:id', (req, res) => {
+    const itemId = parseInt(req.params.id, 10);
+    const initialLength = items.length;
+    
+    // Filter out the item to be deleted
+    items = items.filter(i => i.id !== itemId);
+
+    if (items.length < initialLength) {
+        // If an item was deleted, send a success message.
+        // A 204 No Content status is also appropriate, but a message can be more explicit.
+        res.status(200).json({ message: 'Item deleted successfully.' });
+    } else {
+        // If no item was deleted (because it wasn't found), return a 404 error
+        res.status(404).json({ message: 'Item not found.' });
+    }
+});
+
+// 6. Error Handling for Invalid Routes
+// This middleware will catch any request that doesn't match the routes defined above.
+// It should be placed at the end of all route definitions.
+app.use((req, res, next) => {
+    res.status(404).json({ message: 'Route not found.' });
+});
+
+// 7. Generic Error Handler
+// This middleware will catch any errors that occur in the application.
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Internal Server Error.' });
+});
+
+
+// 8. Start the server
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+});
